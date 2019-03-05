@@ -21,12 +21,27 @@ export class DatasourceSrv {
     this.datasources = {};
   }
 
-  get(name?: string): Promise<DataSourceApi> {
+  get(name?: string, scopedVars?: any): Promise<DataSourceApi> {
     if (!name) {
       return this.get(config.defaultDatasource);
     }
-
+    const beforeName = name;
     name = this.templateSrv.replace(name);
+
+    if (beforeName !== name) {
+      // Means datasource contained a variable
+      // look up beforeName in scopedVars (without the '$')
+      const re1 = /\$(.*)+/;
+      const newName = beforeName.replace(re1, '$1');
+      // Make sure scopedVars is defined AND the variable is still active
+      if (scopedVars && this.templateSrv.index[newName] && this.templateSrv.index[newName].type === 'datasource') {
+        name = scopedVars[newName].value;
+      } else {
+        // if datasource provided as an array, just use the first one
+        const re = /{([^,}]+).*/;
+        name = name.replace(re, '$1');
+      }
+    }
 
     if (name === 'default') {
       return this.get(config.defaultDatasource);
